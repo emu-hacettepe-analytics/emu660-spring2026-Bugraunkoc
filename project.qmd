@@ -1,5 +1,5 @@
 ---
-title: "Project X"
+Proje Başlığı: "Türkiye'de Araç Kullanıcılarının Marka ve Yakıt Tercihlerinin Zaman İçerisindeki Değişiminin Analizi"
 ---
 
 Welcome to my/our project page.
@@ -10,23 +10,27 @@ Keep an eye on this space to stay updated with my project activities.
 
 # 1. Project Overview and Scope
 
-xxxxxx
+2005 yılından günümüze kadar geçen 20 yıllık sürede araç kullanıcılarının alışkanlıklarının nasıl değiştiğine ve bu değişim üzerinde etkisi olan parametreleri analiz ederek Türkiye'deki kullanıcı kitlesinin gelecek dönemdeki araç ve yakıt tercihlerine vereceği tepkiyi tahmin etmek. Bu tahmin ile birlikte ileri dönem yatırımlarının planlanmasını 
 
 # 2. Data
 
-xxxxxx
+Dataset-1 2005 Ocak tarihinden günümüze satılan araçların markalara göre adetini vermektedir -----> https://veriportali.tuik.gov.tr/tr/databrowser/tuik/categories/15/15_2/15_2_1/TR,DF_MOTORLU_KARA_TASIT_MARKA_V2,1.0
+Dataset-2 2005 Ocak tarihinden günümüze satılan araçların yakıt tipine göre dağılımını vermektedir -----> https://veriportali.tuik.gov.tr/tr/databrowser/tuik/categories/15/15_2/15_2_1/TR,DF_MOTORLU_KARA_TASIT_YAKIT_CINSI_V4,1.0
 
 ## 2.1 Data Source
 
-xxxxxx
+Veri kaynağımız Emniyet Genel Müdürlüğünün Trafik Tescil Sistemi'dir. TÜİK sayfasında bulunan veri setleri .csv dosyası olarak tüm veriyi içerecek şekilde indirilmiştir.
 
 ## 2.2 General Information About Data
 
-xxxxxx
+Dataset-1:
+  2005 ocak ayından itibaren aylık olarak tutulan araç modelleri ile tescili yapılan araç sayısı ile o dönemdeki yüzdelik ağırlığını içermektedir.
+Dataset-2:
+  2005 ocak ayından itibaren aylık olarak tutulan toplam araç sayısı ile bu toplamın yakıt türüne göre sayısal ve yüzdesel dağılımını göstermektedir.  
 
 ## 2.3 Reason of Choice
 
-xxxxxx
+Araçların gündelik hayatımızın olmazsa olmazı haline geldiği dünyamızda araç tercihlerimizi etkileyen etmenlerden birisi olan yakıt türünün zamanla uğradığı değişimi ve kullanıcıların marka tercihlerini analiz ederek gelecek dönem öngörülerinde bulunmayı sağlayacak sonuçlara ulaşmak. Bu sonuçlar ile birlikte yapılacak olan altyapı yatırımları ve satış sonrası ihtiyaçlar dahilinde sürdürülebilir bir ekosistem oluşturma hedefi güdülmektedir.
 
 ## 2.4 Preprocessing
 
