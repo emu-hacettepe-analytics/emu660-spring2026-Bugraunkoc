@@ -1,61 +1,87 @@
 ---
 Proje Başlığı: "Türkiye'de Araç Kullanıcılarının Marka ve Yakıt Tercihlerinin Zaman İçerisindeki Değişiminin Analizi"
+Hazırlayan: "Buğra ÜNKOÇ"
+Tarih: "Mayıs 2026"
 ---
 
-Welcome to my/our project page.
+# 1. Abstract
 
-Keep an eye on this space to stay updated with my project activities.
+Bu çalışma, TÜİK tarafından yayımlanan iki açık veri setinin birlikte analiz edilerek Türkiye'deki kullanıcıların otomobil tercihlerinin zaman içerisinde nasıl değiştiği incelemektedir. İki veri seti de Ocak 2005 ile Mart 2026 tarihleri arasındaki veriyi temel almaktadır.
 
-(The titles below are provided as examples; please feel free to adjust them as necessary.)
+İlk veri seti trafiğe yeni kaydı yapılan otomobillerin markalara göre dağılımını göstermektedir. Bu veri seti, yıllara göre marka tercihlerini temsil eden bir akış göstergesi olarak ele alınmıştır. İkinci veri seti ise trafiğe kayıtlı otomobillerin yakıt cinslerine göre dağılımını göstermektedir. Bu veri seti, kullanılan otomobillerin yakıt türlerini incelemek için kullanılmıştır.
 
-# 1. Project Overview and Scope
+Analiz sonuçları, son yıllarda marka tercihlerinin daha parçalı ve rekabetçi hale geldiğini özellikle de 2020 sonrasında yeni ve alternatif markaların daha çok tercih edildiğini göstermektedir. Yakıt türü açısından bakıldığında ise dizel, benzin ve LPG tericihleri mevcut araç stokunda hala baskın konumdadır ancak hibrit ve elektrikli araçların tercihinin son dönemlerde artan bir trende sahip olduğu gözlemlenmektedir.
+Genel olarak bulgular, Türkiye otomobil pazarında hem marka çeşitliliğinin arttığını hem de yakıt türü açısından kademeli bir fosil dışı yakıt tercihi sürecinin başladığını göstermektedir.
 
-2005 yılından günümüze kadar geçen 20 yıllık sürede araç kullanıcılarının alışkanlıklarının nasıl değiştiğine ve bu değişim üzerinde etkisi olan parametreleri analiz ederek Türkiye'deki kullanıcı kitlesinin gelecek dönemdeki araç ve yakıt tercihlerine vereceği tepkiyi tahmin etmek. Bu tahmin ile birlikte ileri dönem yatırımlarının planlanmasını 
+# 2. Project Overview and Scope
 
-# 2. Data
+Türkiye otomobil pazarı; tüketici tercihleri, satın alma gücü, teknolojik dönüşüm ve politika etkileri açısından önemli bir göstergedir. Kullanıcılarının alışkanlıklarının nasıl değiştiğine ve bu değişim üzerinde etkisi olan parametreleri analiz ederek Türkiye'deki kullanıcı kitlesinin gelecek dönemdeki araç ve yakıt tercihlerine vereceği tepkiyi tahmin etmek üzere çalışmada iki temel araştırma sorusu sorulmuştur:
 
-Dataset-1 2005 Ocak tarihinden günümüze satılan araçların markalara göre adetini vermektedir -----> https://veriportali.tuik.gov.tr/tr/databrowser/tuik/categories/15/15_2/15_2_1/TR,DF_MOTORLU_KARA_TASIT_MARKA_V2,1.0
-Dataset-2 2005 Ocak tarihinden günümüze satılan araçların yakıt tipine göre dağılımını vermektedir -----> https://veriportali.tuik.gov.tr/tr/databrowser/tuik/categories/15/15_2/15_2_1/TR,DF_MOTORLU_KARA_TASIT_YAKIT_CINSI_V4,1.0
+1. Türkiye'de trafiğe yeni kaydı yapılan otomobillerde kullanıcıların yıllara göre marka tercihleri nasıl değişmiştir?
+2. Kullanıcıların araçlarındaki kullanmak istedikleri yakıt tercihleri nasıl değişmiştir?
 
-## 2.1 Data Source
+Çalışma kapsamı 2005 yılının başından günümüze kadar gelen 20 yıllık süreyi ulusal düzeyde ele almakta ve verinin analizleri yıllık frekans baz alınarak yapılmıştır. TÜİK verileri aylık gözlemlerden oluştuğu için uzun dönemli eğilimleri daha anlaşılır hale getirmek amacıyla aylık gözlemler yıllık göstergelere dönüştürülmüştür.
+Marka tercihi, yıllık yeni kayıt sayıları üzerinden ölçülmüştür. Yakıt türü tercihi ise trafikte kaydı olan mevcut otomobilleri temsil ettiği için her yılın en son mevcut ayındaki stok değeri üzerinden değerlendirilmiştir. Bu ayrım önemlidir çünkü marka veri seti yeni kayıtları, yakıt veri seti ise trafiğe kayıtlı toplam araç sayısını göstermektedir. Başka bir ifadeyle, marka verisi bir akış göstergesiyken yakıt verisi bir stok göstergesidir.
 
-Veri kaynağımız Emniyet Genel Müdürlüğünün Trafik Tescil Sistemi'dir. TÜİK sayfasında bulunan veri setleri .csv dosyası olarak tüm veriyi içerecek şekilde indirilmiştir.
+# 3. Data
 
-## 2.2 General Information About Data
+Çalışmada TÜİK'e ait iki farklı veri seti kullanılmıştır:
 
-Dataset-1:
-  2005 ocak ayından itibaren aylık olarak tutulan araç modelleri ile tescili yapılan araç sayısı ile o dönemdeki yüzdelik ağırlığını içermektedir.
-Dataset-2:
-  2005 ocak ayından itibaren aylık olarak tutulan toplam araç sayısı ile bu toplamın yakıt türüne göre sayısal ve yüzdesel dağılımını göstermektedir.  
+Veri_Seti_1: 2005 Ocak tarihinden günümüze satılan araçların markalara göre adetini vermektedir -----> https://veriportali.tuik.gov.tr/tr/databrowser/tuik/categories/15/15_2/15_2_1/TR,DF_MOTORLU_KARA_TASIT_MARKA_V2,1.0
+Veri_Seti_2: 2005 Ocak tarihinden günümüze satılan araçların yakıt tipine göre dağılımını vermektedir -----> https://veriportali.tuik.gov.tr/tr/databrowser/tuik/categories/15/15_2/15_2_1/TR,DF_MOTORLU_KARA_TASIT_YAKIT_CINSI_V4,1.0
 
-## 2.3 Reason of Choice
+## 3.1 Data Source
+
+Veri kaynağımız Emniyet Genel Müdürlüğünün Trafik Tescil Sistemi'dir. TÜİK sayfasında bulunan veri setleri .csv dosyası olarak, Ocak 2005 - Mart 2026 dönemini kapsayan ve Türkiye genelini içerecek şekilde indirilmiştir. Marka veri seti hem sayı hem de yüzde gözlemlerini içermektedir. Yakıt veri seti, yakıt kategorilerine göre hem sayı hem de yüzde değerlerini içermektedir. Analizde karşılaştırılabilirliği sağlamak amacıyla yalnızca "Sayı" ölçü birimindeki gözlemler kullanılmıştır.
+
+## 3.2 Reason of Choice
 
 Araçların gündelik hayatımızın olmazsa olmazı haline geldiği dünyamızda araç tercihlerimizi etkileyen etmenlerden birisi olan yakıt türünün zamanla uğradığı değişimi ve kullanıcıların marka tercihlerini analiz ederek gelecek dönem öngörülerinde bulunmayı sağlayacak sonuçlara ulaşmak. Bu sonuçlar ile birlikte yapılacak olan altyapı yatırımları ve satış sonrası ihtiyaçlar dahilinde sürdürülebilir bir ekosistem oluşturma hedefi güdülmektedir.
 
-## 2.4 Preprocessing
+## 3.3 Preprocessing
+
+Ham dosyalarda hem açıklayıcı sütunlar hem de analizde kullanılacak gözlem değerleri bulunmaktadır. Veri setlerini analize hazır hale getirmek için aşağıdaki adımlar uygulanmıştır:
+
+Analizde yalnızca `Ölçü Birimi == "Sayı"` olan gözlemler kullanılmıştır.
+`Toplam` kategorisi, pay hesaplamalarını bozabileceği için analiz öncesinde dışarıda bırakılmıştır.
+Aylık zaman değişkeni tarih formatına çevrilmiştir.
+Marka kayıtları yıllık düzeyde toplanmıştır. Böylece her marka için yıllık yeni kayıt sayısı elde edilmiştir.
+Yakıt türü verisi stok verisi olduğu için tekrar eden değerlerin toplanmaması adına aylık değerler toplanmamıştır. Bunun yerine, her yıl için mevcut en son ay seçilmiştir. Tam yıllarda bu değer 2026 yılı haricinde Aralık ayına karşılık gelmektedir. 2026 yılı için veri alınan en son ay Mart olduğu için bu döneminin gözlemi kullanılmıştır.
+
+# 4. Analysis
 
 xxxxxx
 
-# 3. Analysis
+## 4.1 Exploratory Data Analysis
 
 xxxxxx
 
-## 3.1 Exploratory Data Analysis
+## 4.2 Trend Analysis
 
 xxxxxx
 
-## 3.2 Trend Analysis
+## 4.3 Model Fitting
 
 xxxxxx
 
-## 3.3 Model Fitting
+## 4.4 Results
 
-xxxxxx
+İki veri seti araç düzeyinde doğrudan birleştirilememektedir; çünkü marka verisinde yakıt türü, yakıt verisinde ise marka bilgisi bulunmamaktadır. Buna rağmen iki veri seti birlikte yorumlandığında pazarın yapısal bir dönüşüm içinde olduğu görülmektedir. Markaların çeşitlenmesi ve yakıt türünün zaman içerisindeki dönüşümü aynı dönemde ortaya çıkan iki önemli eğilimdir. Elektrikli ve/veya hibrit stratejileriyle öne çıkan markaların pazardaki görünürlüğünün artması, elektrikli ve hibrit araçların stok payındaki artışla aynı döneme denk gelmektedir. Bununla birlikte, Türkiye'deki kayıtlı otomobil stoku kümülatif bir değişken olduğu için dönüşüm yavaş olarak gerçekleşmektedir. Dolayısıyla yeni elektrikli veya hibrit kayıtları hızlı artsa bile, bu dönüşümün toplam araç stokunda belirli bir konuma gelmesi zaman alacaktır.
 
-## 3.4 Results
+# 5. Results and Key Takeaways
 
-xxxxxx
+Analiz sonuçları, Türkiye otomobil pazarının 2005-2026 döneminde anlamlı bir dönüşüm geçirdiğini göstermektedir. Yeni kayıtlarda marka tercihleri özellikle 2020'li yılların başından sonra daha çeşitli hale gelmiştir. Yakıt türü boyutunda ise kayıtlı otomobil stoku, benzin ağırlıklı yapıdan benzin, dizel ve LPG'nin birlikte güçlü olduğu daha dengeli bir yapıya doğru evrilmiştir. Hibrit ve elektrikli araçlar düşük bir tabandan büyümeye başlamış ve artık stok içinde görünür bir paya ulaşmıştır. Bu çalışmanın temel sonucu, Türkiye'de otomobil tercihlerinin marka açısından çeşitlendiği, yakıt türü açısından ise kademeli biçimde elektrikleşmeye başladığıdır. Ancak toplam kayıtlı araç stoku kümülatif bir yapı olduğu için bu dönüşümün tam etkisi uzun vadede ortaya çıkacaktır.
 
-# 4. Results and Key Takeaways
+Özetleyecek olursak:
+Türkiye'de yeni otomobil kayıtları açısından marka pazarı daha çeşitli hale gelmiştir. İlk beş markanın toplam payının 2025 yılında yaklaşık %39,8'e gerilemesi, rekabetin arttığını ve kullanıcı seçeneklerinin genişlediğini göstermektedir.
+Renault, Volkswagen, Fiat, Toyota ve Hyundai gibi geleneksel markalar hala güçlü biçimde görünür durumdadır ancak 2020'li yıllarda yeni veya hızlı büyüyen markalar pazarda pay kazanmıştır.
+Yakıt türü açısından kayıtlı otomobil stokunda önemli bir dönüşüm yaşanmıştır. Benzinli araçların baskınlığı azalırken LPG ve dizel araçlar stokun önemli bileşenleri haline gelmiştir.
+Hibrit ve elektrikli araçlar toplam otomobil stokunda hala azınlık konumundadır ancak verilere göre toplam payları 2025'te yaklaşık %6,1'e, Mart 2026'da ise yaklaşık %6,7'ye ulaşmıştır.
+Marka verisi yeni kayıtları, Yakıt verisi ise kümülatif kayıtlı otomobil sayısını temsil etmektedir.
 
-xxxxxx
+# 6. Constraints
+
+Bu çalışmanın kısıtları aşağıdaki gibi özetlenebilir:
+İlk olarak marka ve yakıt veri setleri çaprazlanamadığı için hangi markaların yakıt türü dönüşümüne ne ölçüde katkı verdiği doğrudan analiz edilememektedir.
+İkinci olarak, 2026 yılı verisi sadece Mart ayına kadar girdi sağladığından dikkatli yorumlanmalıdır.
+Üçüncü olarak, çalışma araç fiyatları, hanehalkı geliri, vergi değişiklikleri, kredi koşulları, döviz kuru ve model bazlı özellikleri içermemektedir. Bu değişkenler, tüketicilerin belirli marka veya yakıt türlerine neden yöneldiğini açıklamak için önemli kriterlerdir.
