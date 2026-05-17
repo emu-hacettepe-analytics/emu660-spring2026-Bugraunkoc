@@ -1,6 +1,6 @@
 ---
 Proje Başlığı: "Türkiye'de Araç Kullanıcılarının Marka ve Yakıt Tercihlerinin Zaman İçerisindeki Değişiminin Analizi"
-Hazırlayan: "Buğra ÜNKOÇ"
+Hazırlayan: "Buğra ÜNKOÇ" 
 Tarih: "Mayıs 2026"
 ---
 
