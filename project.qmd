@@ -49,8 +49,41 @@ Ham dosyalarda hem açıklayıcı sütunlar hem de analizde kullanılacak gözle
 - Marka kayıtları yıllık düzeyde toplanmıştır. Böylece her marka için yıllık yeni kayıt sayısı elde edilmiştir.
 - Yakıt türü verisi stok verisi olduğu için tekrar eden değerlerin toplanmaması adına aylık değerler toplanmamıştır. Bunun yerine, her yıl için mevcut en son ay seçilmiştir. Tam yıllarda bu değer 2026 yılı haricinde Aralık ayına karşılık gelmektedir. 2026 yılı için veri alınan en son ay Mart olduğu için bu döneminin gözlemi kullanılmıştır.
 
-# Türkçe karakter sorunlarına dayanıklı veri ön işleme bloğu
-# Bu blok, sütun adlarına doğrudan Türkçe karakterlerle referans vermek yerine CSV dosyalarındaki sabit sütun pozisyonlarını kullanır.
+```{r import-and-preprocess}
+# ------------------------------------------------------------
+# Dosya bulma ve içe aktarma
+# ------------------------------------------------------------
+
+find_csv_file <- function(keyword) {
+  files <- list.files(path = ".", pattern = "\\.csv$", recursive = TRUE, full.names = TRUE)
+  matched <- files[str_detect(str_to_lower(basename(files)), str_to_lower(keyword))]
+  if (length(matched) == 0) {
+    stop(paste0("CSV dosyası bulunamadı. Dosya adında '", keyword, "' ifadesi geçtiğinden emin olun."))
+  }
+  matched[1]
+}
+
+brand_file <- (file.exists("data/raw/brand_registrations.csv"))
+  "data/raw/brand_registrations.csv"
+
+fuel_file <- if (file.exists("data/raw/fuel_stock.csv"))
+  "data/raw/fuel_stock.csv"
+brand_file <- file.choose()
+brand_raw <- readr::read_delim(
+  brand_file,
+  delim = ";",
+  locale = readr::locale(encoding = "UTF-8"),
+  show_col_types = FALSE,
+  trim_ws = TRUE
+)
+fuel_file <- file.choose()
+fuel_raw <- readr::read_delim(
+  fuel_file,
+  delim = ";",
+  locale = readr::locale(encoding = "UTF-8"),
+  show_col_types = FALSE,
+  trim_ws = TRUE
+)
 
 # Sayısal değerleri güvenli biçimde dönüştürmek için yardımcı fonksiyon
 clean_number <- function(x) {
@@ -72,22 +105,22 @@ clean_number <- function(x) {
 # 13 = Zaman (TIME_PERIOD)
 # 14 = Gözlem
 
-brand_clean <- brand_raw %>%
-  transmute(
-    date = lubridate::ymd(paste0(.data[[13]], "-01")),
+brand_std <- brand_raw[, c(9, 10, 11, 12, 13, 14)]
+names(brand_std) <- c("unit_code", "unit", "brand_code", "brand", "time_period", "observation")
+
+brand_clean <- brand_std %>%
+  mutate(
+    date = lubridate::ymd(paste0(time_period, "-01")),
     year = lubridate::year(date),
     month = lubridate::month(date),
-    brand_code = .data[[11]],
-    brand = .data[[12]],
-    unit_code = .data[[9]],
-    unit = .data[[10]],
-    observations = clean_number(.data[[14]])
+    observations = clean_number(observation)
   ) %>%
   filter(
     unit_code == "NR",
     !is.na(observations),
     brand != "Toplam"
-  )
+  ) %>%
+  select(date, year, month, brand_code, brand, unit_code, unit, observations)
 
 annual_brand <- brand_clean %>%
   group_by(year, brand) %>%
@@ -115,22 +148,22 @@ annual_brand <- brand_clean %>%
 # 13 = Zaman (TIME_PERIOD)
 # 14 = Gözlem
 
-fuel_clean <- fuel_raw %>%
-  transmute(
-    date = lubridate::ymd(paste0(.data[[13]], "-01")),
+fuel_std <- fuel_raw[, c(9, 10, 11, 12, 13, 14)]
+names(fuel_std) <- c("fuel_code", "fuel_type", "unit_code", "unit", "time_period", "observation")
+
+fuel_clean <- fuel_std %>%
+  mutate(
+    date = lubridate::ymd(paste0(time_period, "-01")),
     year = lubridate::year(date),
     month = lubridate::month(date),
-    fuel_code = .data[[9]],
-    fuel_type = .data[[10]],
-    unit_code = .data[[11]],
-    unit = .data[[12]],
-    stock = clean_number(.data[[14]])
+    stock = clean_number(observation)
   ) %>%
   filter(
     unit_code == "NR",
     !is.na(stock),
     fuel_type != "Toplam"
-  )
+  ) %>%
+  select(date, year, month, fuel_code, fuel_type, unit_code, unit, stock)
 
 fuel_snapshot <- fuel_clean %>%
   group_by(year, fuel_type) %>%
@@ -149,15 +182,8 @@ fuel_snapshot <- fuel_clean %>%
 
 dir.create("data/processed", recursive = TRUE, showWarnings = FALSE)
 
-write_csv(
-  annual_brand,
-  "data/processed/annual_brand_registrations.csv"
-)
-
-write_csv(
-  fuel_snapshot,
-  "data/processed/annual_fuel_stock_snapshot.csv"
-)
+write_csv(annual_brand, "data/processed/annual_brand_registrations.csv")
+write_csv(fuel_snapshot, "data/processed/annual_fuel_stock_snapshot.csv")
 
 save(
   brand_clean,
@@ -166,13 +192,66 @@ save(
   fuel_snapshot,
   file = "data/processed/vehicle_project_data.RData"
 )
+```
 
 # 4. Analysis
 
-selected_years <- c(2005, 2010, 2015, 2020, 2025, 2026)
+Analiz üç aşamada yürütülmüştür. İlk aşamada işlenmiş veri setlerinin genel kapsamı incelenmiştir. İkinci aşamada marka tercihleri ve yakıt türü dağılımlarındaki uzun dönemli trendler analiz edilmiştir. Üçüncü aşamada ise elektrikli ve hibrit araçların toplam otomobil stoku içerisindeki payı için basit bir trend modeli kurulmuştur.
 
+## 4.1 Exploratory Data Analysis
+
+Yeni kayıt serisi yıllar arasında belirgin dalgalanmalar göstermektedir. Bu durum beklenen bir sonuçtur çünkü yeni otomobil talebi makroekonomik koşullar, araç fiyatları, kredi erişimi, döviz kuru, arz kısıtları ve düzenlemelerden etkilenebilir. Bu çalışmanın temel amacı toplam talebi tahmin etmek değil, tercih yapısındaki değişimleri inceleyerek ileri dönem öngörüsünde bulunmak olduğu için analizlerde ağırlıklı olarak pazar payı, sıralama ve kategori dağılımı göstergeleri kullanılmıştır.
+
+```{r eda-summary}
+brand_summary <- tibble(
+  veri_seti = "Marka bazında yeni kayıtlar",
+  ilk_yil = min(annual_brand$year, na.rm = TRUE),
+  son_yil = max(annual_brand$year, na.rm = TRUE),
+  kategori_sayisi = n_distinct(annual_brand$brand),
+  gozlem_sayisi = nrow(annual_brand)
+)
+
+fuel_summary <- tibble(
+  veri_seti = "Yakıt türü bazında otomobil stoku",
+  ilk_yil = min(fuel_snapshot$year, na.rm = TRUE),
+  son_yil = max(fuel_snapshot$year, na.rm = TRUE),
+  kategori_sayisi = n_distinct(fuel_snapshot$fuel_type),
+  gozlem_sayisi = nrow(fuel_snapshot)
+)
+
+bind_rows(brand_summary, fuel_summary) %>%
+  kable(caption = "İşlenmiş veri setlerinin genel özeti")
+```
+
+```{r annual-market-plot, fig.height=4.5, fig.width=7}
+annual_market <- annual_brand %>%
+  distinct(year, total_registrations) %>%
+  arrange(year)
+
+ggplot(annual_market, aes(x = year, y = total_registrations)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 1.8) +
+  scale_y_continuous(labels = comma) +
+  labs(
+    title = "Türkiye'de yıllık trafige yeni kaydı yapılan otomobil sayısı",
+    subtitle = "2026 yılı kısmi veridir ve yüklenen dosyada Ocak-Mart dönemini kapsamaktadır",
+    x = NULL,
+    y = "Yeni kayıt sayısı"
+  )
+```
+
+## 4.2 Trend Analysis
+
+Bu bölümde marka pazar payları, ilk beş marka yoğunlaşması ve yakıt türlerinin toplam otomobil stoku içindeki payları incelenmiştir.
+
+```{r selected-years}
+selected_years <- c(2005, 2010, 2015, 2020, 2025, 2026)
+available_selected_years <- selected_years[selected_years %in% unique(annual_brand$year)]
+```
+
+```{r top-brand-table}
 top_brand_table <- annual_brand %>%
-  filter(year %in% selected_years) %>%
+  filter(year %in% available_selected_years) %>%
   group_by(year) %>%
   slice_min(rank, n = 5, with_ties = FALSE) %>%
   ungroup() %>%
@@ -181,35 +260,50 @@ top_brand_table <- annual_brand %>%
     registrations = comma(registrations),
     market_share = percent(market_share, accuracy = 0.1)
   ) %>%
-  select(Yıl = year, Sıra = rank, Marka = brand,
-         `Kayıt sayısı` = registrations, `Pazar payı` = market_share)
+  select(
+    Yil = year,
+    Sira = rank,
+    Marka = brand,
+    `Kayit_sayisi` = registrations,
+    `Pazar_payi` = market_share
+  )
 
 top_brand_table %>%
   kable(caption = "Yıllık yeni kayıtlara göre en yüksek beş marka")
+```
 
-En yaygın beş marka tablosu, pazarda hem süreklilik hem de değişim olduğunu göstermektedir. Renault, dönem boyunca en kalıcı liderlerden biri olarak öne çıkmaktadır. Volkswagen, Fiat, Toyota, Hyundai, Peugeot ve Opel gibi markalar da farklı yıllarda üst sıralarda sıkça görünmektedir. Bununla birlikte 2020'li yıllarda rekabetçi yapının daha çeşitli hale geldiği ve Türkiye pazarında geçmişte baskın olmayan bazı markaların daha görünür olduğu anlaşılmaktadır.
+En yaygın beş marka tablosu, pazarda hem süreklilik hem de değişim olduğunu göstermektedir. Renault, Volkswagen, Fiat, Toyota, Hyundai, Peugeot ve Opel gibi markalar farklı yıllarda üst sıralarda sıkça görünmektedir. Bununla birlikte 2020'li yıllarda rekabetçi yapının daha çeşitli hale geldiği ve Türkiye pazarında geçmişte baskın olmayan bazı markaların daha görünür olduğu anlaşılmaktadır.
 
-top_2025_brands <- annual_brand %>%
-  filter(year == 2025) %>%
+```{r brand-market-share-trend, fig.height=5, fig.width=7.5}
+reference_year <- ifelse(
+  2025 %in% unique(annual_brand$year),
+  2025,
+  max(annual_brand$year[annual_brand$year < 2026], na.rm = TRUE)
+)
+
+top_reference_brands <- annual_brand %>%
+  filter(year == reference_year) %>%
   slice_max(registrations, n = 8) %>%
   pull(brand)
 
 annual_brand %>%
-  filter(brand %in% top_2025_brands) %>%
+  filter(brand %in% top_reference_brands) %>%
   ggplot(aes(x = year, y = market_share, color = brand)) +
   geom_line(linewidth = 1) +
   scale_y_continuous(labels = percent) +
   labs(
     title = "Önde gelen markaların pazar payı eğilimleri",
-    subtitle = "Markalar, 2025 yılı yeni kayıt hacmine göre seçilmiştir",
+    subtitle = paste("Markalar", reference_year, "yılı yeni kayıt hacmine göre seçilmiştir"),
     x = NULL,
     y = "Yıllık yeni kayıtlardaki pay",
     color = "Marka"
   ) +
   theme(legend.position = "bottom")
+```
 
-Çizgi grafikte pazar liderliğinin zaman içinde daha değişken hale geldiği görülmektedir. İlk yıllarda pazar daha sınırlı sayıda marka etrafında yoğunlaşırken, 2024-2025 döneminde lider markalar önemini korusa da ilk sıradaki marka ile pazarın geri kalanı arasındaki tercih farkının önceki dönemlere göre azaldığı görülmektedir.
+Çizgi grafikte pazar liderliğinin zaman içinde daha değişken hale geldiği görülmektedir. İlk yıllarda pazar daha sınırlı sayıda marka etrafında yoğunlaşırken, son yıllarda lider markalar önemini korusa da pazarın geri kalanı arasındaki yüzdesel tercih farkının önceki dönemlere göre azaldığı görülmektedir.
 
+```{r concentration-table-and-plot, fig.height=4.5, fig.width=7}
 concentration <- annual_brand %>%
   group_by(year) %>%
   summarise(
@@ -219,15 +313,15 @@ concentration <- annual_brand %>%
   )
 
 concentration %>%
-  filter(year %in% selected_years) %>%
+  filter(year %in% available_selected_years) %>%
   mutate(
     hhi = round(hhi, 3),
     top5_share = percent(top5_share, accuracy = 0.1)
   ) %>%
   transmute(
-    Yıl = year,
-    `HHI göstergesi` = hhi,
-    `İlk beş markanın toplam payı` = top5_share
+    Yil = year,
+    `HHI_göstergesi` = hhi,
+    `Ilk_bes_markanin_toplam_payi` = top5_share
   ) %>%
   kable(caption = "Marka pazarı yoğunlaşma göstergeleri")
 
@@ -240,44 +334,55 @@ ggplot(concentration, aes(x = year, y = top5_share)) +
     x = NULL,
     y = "İlk beş markanın toplam payı"
   )
+```
 
-İlk beş markanın pazar payının düşmesi, pazarın daha fazla marka arasında dağıldığı anlamına gelmektedir. Özellikle 2020'li yılların başından sonra yoğunlaşmanın azaldığını göstermektedir. 2025 yılında ilk beş markanın toplam payı yaklaşık %39,8 düzeyindedir. Bu oran, önceki yıllara göre daha düşük olup pazarın daha parçalı ve rekabetçi bir yapıya doğru ilerlediği yorumunu desteklemektedir.
+İlk beş markanın pazar payının düşmesi, pazarın daha fazla marka arasında dağıldığı anlamına gelmektedir. Özellikle 2020'li yıllardan sonra yoğunlaşmanın azalması, pazarın daha parçalı ve rekabetçi bir yapıya doğru ilerlediği yorumunu desteklemektedir.
 
-brand_change_2015_2025 <- annual_brand %>%
-  filter(year %in% c(2015, 2025)) %>%
-  select(year, brand, market_share) %>%
-  pivot_wider(names_from = year, values_from = market_share, values_fill = 0) %>%
-  mutate(change_pp = (`2025` - `2015`) * 100) %>%
-  arrange(desc(change_pp))
+```{r brand-change-2015-2025}
+if (all(c(2015, 2025) %in% unique(annual_brand$year))) {
+  brand_change_2015_2025 <- annual_brand %>%
+    filter(year %in% c(2015, 2025)) %>%
+    select(year, brand, market_share) %>%
+    pivot_wider(names_from = year, values_from = market_share, values_fill = 0) %>%
+    mutate(change_pp = (`2025` - `2015`) * 100) %>%
+    arrange(desc(change_pp))
 
-bind_rows(
-  brand_change_2015_2025 %>% slice_head(n = 8) %>% mutate(group = "En yüksek artışlar"),
-  brand_change_2015_2025 %>% slice_tail(n = 8) %>% mutate(group = "En yüksek düşüşler")
-) %>%
-  transmute(
-    Grup = group,
-    Marka = brand,
-    `2015 payı` = percent(`2015`, accuracy = 0.1),
-    `2025 payı` = percent(`2025`, accuracy = 0.1),
-    `Değişim, yüzde puan` = round(change_pp, 1)
+  bind_rows(
+    brand_change_2015_2025 %>% slice_head(n = 8) %>% mutate(group = "En yüksek artışlar"),
+    brand_change_2015_2025 %>% slice_tail(n = 8) %>% mutate(group = "En yüksek düşüşler")
   ) %>%
-  kable(caption = "2015-2025 arasında marka pazar paylarındaki değişim")
+    transmute(
+      Grup = group,
+      Marka = brand,
+      `2015_payi` = percent(`2015`, accuracy = 0.1),
+      `2025_payi` = percent(`2025`, accuracy = 0.1),
+      `Degisim, yüzde_puan` = round(change_pp, 1)
+    ) %>%
+    kable(caption = "2015-2025 arasında marka pazar paylarındaki değişim")
+}
+```
 
-2015-2025 yılları arasındaki dönemde en güçlü artışlar hem geniş artık kategorileri hem de BYD, Chery, Peugeot, Citroen, Skoda, TOGG, Cupra ve Jaecoo gibi belirli markaları içermektedir. Bu sonuç, tüketici tercihlerinin çeşitlendiğini ve pazara yeni giren ya da hızlı büyüyen markaların önem kazandığını göstermektedir. Diğer tarafta bazı geleneksel markaların paylarında düşüş görülmektedir.
+2015-2025 yılları arasındaki dönem, kullanıcı tercihlerinde çeşitlenmenin arttığı bir aralığa işaret etmektedir. Pazara yeni giren veya hızlı büyüyen markaların görünür hale gelmesi, geleneksel markaların ise bazı dönemlerde göreli pay kaybetmesi bu dönüşümün temel göstergelerindendir.
 
--------------------------------------------------------------------------------
-
+```{r fuel-share-table}
 fuel_snapshot %>%
-  filter(year %in% selected_years) %>%
+  filter(year %in% available_selected_years) %>%
   arrange(year, desc(stock)) %>%
   mutate(
     stock = comma(stock),
     share = percent(share, accuracy = 0.1)
   ) %>%
-  select(Yıl = year, Tarih = date, `Yakıt türü` = fuel_type,
-         Stok = stock, Pay = share) %>%
+  select(
+    Yil = year,
+    Tarih = date,
+    `Yakit_turu` = fuel_type,
+    Stok = stock,
+    Pay = share
+  ) %>%
   kable(caption = "Kayıtlı otomobillerin yakıt türüne göre dağılımı")
+```
 
+```{r fuel-area-plot, fig.height=5, fig.width=7.5}
 fuel_snapshot %>%
   ggplot(aes(x = year, y = share, fill = fuel_type)) +
   geom_area(alpha = 0.85) +
@@ -290,33 +395,114 @@ fuel_snapshot %>%
     fill = "Yakıt türü"
   ) +
   theme(legend.position = "bottom")
+```
 
-Yakıt türü verisi üç ana evreye işaret etmektedir. İlk evrede, 2000'li yılların ortasında benzinli otomobiller baskın konumdadır. İkinci evrede, 2005'ten 2010'ların sonuna doğru LPG ve dizel araçların payı belirgin ölçüde artmıştır. Üçüncü evrede ise 2020 sonrasında benzinli araçların payında yeniden toparlanma görülürken, hibrit ve elektrikli araçlar stok içinde görünür hale gelmeye başlamıştır. Mart 2026 itibarıyla dizel, benzin ve LPG toplam otomobil sayısının büyük çoğunluğunu oluşturmaya devam etmektedir ancak elektrikli ve hibrit araçlar da artık görülür bir orandadır.
+Yakıt türü verisi üç ana evreye işaret etmektedir. İlk evrede benzinli otomobiller baskın konumdadır. İkinci evrede LPG ve dizel araçların payı belirgin ölçüde artmıştır. Üçüncü evrede ise hibrit ve elektrikli araçlar stok içinde görünür hale gelmeye başlamıştır. 2026 itibarıyla dizel, benzin ve LPG toplam otomobil sayısının büyük çoğunluğunu oluşturmaya devam etse de elektrikli ve hibrit araçların payı artış eğilimindedir.
 
------------------------------------------------------------------------------------------
+## 4.3 Model Fitting
+
+Bu bölümde elektrikli ve hibrit araçların toplam otomobil stoku içindeki payı için basit bir doğrusal trend modeli kurulmuştur. Modelin amacı 2018 yılı sonrasında elektrikleşme eğiliminin doğrusal olarak devam etmesi halinde kısa vadede nasıl bir görünüm oluşabileceğini göstermektir.
+
+```{r electrified-model, fig.height=4.5, fig.width=7}
+# Elektrikli ve hibrit araçların toplam stok payı
+# Not: Yakıt türü adları encoding veya kategori ismi farklılıkları nedeniyle
+# birebir "Elektrik" / "Hibrit" gelmeyebilir. Bu nedenle esnek filtreleme yapılır.
 
 electrified <- fuel_snapshot %>%
-  filter(fuel_type %in% c("Elektrik", "Hibrit")) %>%
+  mutate(
+    fuel_type_clean = stringr::str_to_lower(fuel_type)
+  ) %>%
+  filter(
+    stringr::str_detect(fuel_type_clean, "elektr") |
+      stringr::str_detect(fuel_type_clean, "hibrit") |
+      stringr::str_detect(fuel_type_clean, "hybrid")
+  ) %>%
   group_by(year) %>%
-  summarise(electrified_share = sum(share, na.rm = TRUE), .groups = "drop")
+  summarise(
+    electrified_share = sum(share, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  arrange(year)
 
+# Elektrikli + hibrit payı grafiği
 ggplot(electrified, aes(x = year, y = electrified_share)) +
   geom_line(linewidth = 1) +
   geom_point(size = 1.8) +
-  scale_y_continuous(labels = percent) +
+  scale_y_continuous(labels = scales::percent) +
   labs(
     title = "Otomobil stokunda elektrikli ve hibrit araçların toplam payı",
     x = NULL,
     y = "Elektrik + hibrit payı"
   )
 
+# 2018 sonrası dönem modelleme için kullanılır
 electrified_model_data <- electrified %>%
-  filter(year >= 2018)
+  filter(year >= 2018) %>%
+  filter(
+    !is.na(year),
+    !is.na(electrified_share)
+  )
 
-model_electrified <- lm(electrified_share ~ year, data = electrified_model_data)
-future_years <- tibble(year = 2027:2030)
+# Basit doğrusal trend modeli
+model_electrified <- lm(
+  electrified_share ~ year,
+  data = electrified_model_data
+)
+
+# 2027-2030 tahmini
+future_years <- tibble(
+  year = 2027:2030
+)
+
 forecast_electrified <- future_years %>%
-  mutate(predicted_share = pmax(0, predict(model_electrified, newdata = future_years)))
+  mutate(
+    predicted_share = pmax(
+      0,
+      predict(model_electrified, newdata = future_years)
+    )
+  )
+
+# Tahmin tablosu
+forecast_electrified %>%
+  transmute(
+    Yıl = year,
+    `Tahmini elektrik + hibrit payı` = scales::percent(predicted_share, accuracy = 0.1)
+  ) %>%
+  knitr::kable(
+    caption = "Elektrikli ve hibrit araç stok payı için basit doğrusal eğilim projeksiyonu"
+  )
+
+# Gerçekleşen ve tahmin edilen değerleri birlikte göster
+electrified_forecast_plot_data <- bind_rows(
+  electrified %>%
+    transmute(
+      year = year,
+      share = electrified_share,
+      type = "Gerçekleşen"
+    ),
+  forecast_electrified %>%
+    transmute(
+      year = year,
+      share = predicted_share,
+      type = "Tahmin"
+    )
+)
+
+ggplot(
+  electrified_forecast_plot_data,
+  aes(x = year, y = share, linetype = type)
+) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 1.8) +
+  scale_y_continuous(labels = scales::percent) +
+  labs(
+    title = "Elektrikli ve hibrit araç payı için 2027-2030 tahmini",
+    subtitle = "2018 sonrası gözlemler kullanılarak basit doğrusal trend modeli kurulmuştur",
+    x = NULL,
+    y = "Elektrik + hibrit payı",
+    linetype = "Seri"
+  ) +
+  theme(legend.position = "bottom")
 
 forecast_electrified %>%
   transmute(
@@ -324,53 +510,29 @@ forecast_electrified %>%
     `Tahmini elektrik + hibrit payı` = percent(predicted_share, accuracy = 0.1)
   ) %>%
   kable(caption = "Elektrikli ve hibrit araç stok payı için basit doğrusal eğilim projeksiyonu")
+```
 
-Bu projeksiyon bilinçli olarak basit tutulmuştur. Amaç, 2018 sonrası elektrikleşme ivmesinin doğrusal olarak devam etmesi halinde stok payında nasıl bir görünüm oluşabileceğini göstermektir. Daha gelişmiş bir tahmin çalışmasında araç fiyatları, vergi politikaları, şarj altyapısı, model bulunabilirliği, döviz kuru ve gelir göstergeleri gibi değişkenlerin de modele dahil edilmesi gerekir.
-
-## 4.1 Exploratory Data Analysis
-
-Yeni kayıt serisi yıllar arasında belirgin dalgalanmalar göstermektedir. Bu durum beklenen bir sonuçtur çünkü yeni otomobil talebi makroekonomik koşullar, araç fiyatları, kredi erişimi, döviz kuru, arz kısıtları ve düzenlemelerden etkilenebilir. Bu çalışmanın temel amacı toplam talebi tahmin etmek değil, tercih yapısındaki değişimleri inceleyerek ileri dönem öngörüsünde bulunmak olduğu için analizlerde ağırlıklı olarak pazar payı, sıralama ve kategori dağılımı göstergeleri kullanılmıştır.
-
-brand_summary <- tibble(
-  `Veri seti` = "Marka bazında yeni kayıtlar",
-  `İlk yıl` = min(annual_brand$year),
-  `Son yıl` = max(annual_brand$year),
-  `Marka sayısı` = n_distinct(annual_brand$brand),
-  `İşleme sonrası gözlem sayısı` = nrow(annual_brand)
+```{r electrified-forecast-plot, fig.height=4.5, fig.width=7}
+electrified_forecast_plot_data <- bind_rows(
+  electrified %>%
+    transmute(year = year, share = electrified_share, type = "Gerçekleşen"),
+  forecast_electrified %>%
+    transmute(year = year, share = predicted_share, type = "Tahmin")
 )
 
-fuel_summary <- tibble(
-  `Veri seti` = "Yakıt türü bazında otomobil stoku",
-  `İlk yıl` = min(fuel_snapshot$year),
-  `Son yıl` = max(fuel_snapshot$year),
-  `Kategori sayısı` = n_distinct(fuel_snapshot$fuel_type),
-  `İşleme sonrası gözlem sayısı` = nrow(fuel_snapshot)
-)
-
-bind_rows(brand_summary, fuel_summary) %>%
-  kable(caption = "İşlenmiş veri setlerinin genel özeti")
-
-annual_market <- annual_brand %>%
-  distinct(year, total_registrations)
-
-ggplot(annual_market, aes(x = year, y = total_registrations)) +
+ggplot(electrified_forecast_plot_data, aes(x = year, y = share, linetype = type)) +
   geom_line(linewidth = 1) +
   geom_point(size = 1.8) +
-  scale_y_continuous(labels = comma) +
+  scale_y_continuous(labels = percent) +
   labs(
-    title = "Türkiye'de yıllık trafiğe yeni kaydı yapılan otomobil sayısı",
-    subtitle = "2026 yılı kısmi veridir ve yüklenen dosyada Ocak-Mart dönemini kapsamaktadır",
+    title = "Elektrikli ve hibrit araç payı için kısa dönem tahmini",
+    subtitle = "2018 sonrası eğilim kullanılarak doğrusal trend modeli kurulmuştur",
     x = NULL,
-    y = "Yeni kayıt sayısı"
-  )
-
-## 4.2 Trend Analysis
-
-xxxxxx
-
-## 4.3 Model Fitting
-
-xxxxxx
+    y = "Elektrik + hibrit payı",
+    linetype = "Seri"
+  ) +
+  theme(legend.position = "bottom")
+```
 
 ## 4.4 Results
 
