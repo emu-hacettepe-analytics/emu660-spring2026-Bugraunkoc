@@ -173,7 +173,42 @@ xxxxxx
 
 ## 4.1 Exploratory Data Analysis
 
-xxxxxx
+Yeni kayıt serisi yıllar arasında belirgin dalgalanmalar göstermektedir. Bu durum beklenen bir sonuçtur çünkü yeni otomobil talebi makroekonomik koşullar, araç fiyatları, kredi erişimi, döviz kuru, arz kısıtları ve düzenlemelerden etkilenebilir. Bu çalışmanın temel amacı toplam talebi tahmin etmek değil, tercih yapısındaki değişimleri inceleyerek ileri dönem öngörüsünde bulunmak olduğu için analizlerde ağırlıklı olarak pazar payı, sıralama ve kategori dağılımı göstergeleri kullanılmıştır.
+
+brand_summary <- tibble(
+  `Veri seti` = "Marka bazında yeni kayıtlar",
+  `İlk yıl` = min(annual_brand$year),
+  `Son yıl` = max(annual_brand$year),
+  `Marka sayısı` = n_distinct(annual_brand$brand),
+  `İşleme sonrası gözlem sayısı` = nrow(annual_brand)
+)
+
+fuel_summary <- tibble(
+  `Veri seti` = "Yakıt türü bazında otomobil stoku",
+  `İlk yıl` = min(fuel_snapshot$year),
+  `Son yıl` = max(fuel_snapshot$year),
+  `Kategori sayısı` = n_distinct(fuel_snapshot$fuel_type),
+  `İşleme sonrası gözlem sayısı` = nrow(fuel_snapshot)
+)
+
+bind_rows(brand_summary, fuel_summary) %>%
+  kable(caption = "İşlenmiş veri setlerinin genel özeti")
+```
+
+```{r annual-market-size, fig.height=4.5, fig.width=7}
+annual_market <- annual_brand %>%
+  distinct(year, total_registrations)
+
+ggplot(annual_market, aes(x = year, y = total_registrations)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 1.8) +
+  scale_y_continuous(labels = comma) +
+  labs(
+    title = "Türkiye'de yıllık trafiğe yeni kaydı yapılan otomobil sayısı",
+    subtitle = "2026 yılı kısmi veridir ve yüklenen dosyada Ocak-Mart dönemini kapsamaktadır",
+    x = NULL,
+    y = "Yeni kayıt sayısı"
+  )
 
 ## 4.2 Trend Analysis
 
