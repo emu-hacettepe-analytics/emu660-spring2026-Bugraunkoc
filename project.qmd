@@ -49,7 +49,6 @@ Ham dosyalarda hem açıklayıcı sütunlar hem de analizde kullanılacak gözle
 - Marka kayıtları yıllık düzeyde toplanmıştır. Böylece her marka için yıllık yeni kayıt sayısı elde edilmiştir.
 - Yakıt türü verisi stok verisi olduğu için tekrar eden değerlerin toplanmaması adına aylık değerler toplanmamıştır. Bunun yerine, her yıl için mevcut en son ay seçilmiştir. Tam yıllarda bu değer 2026 yılı haricinde Aralık ayına karşılık gelmektedir. 2026 yılı için veri alınan en son ay Mart olduğu için bu döneminin gözlemi kullanılmıştır.
 
-```{r preprocessing}
 # Türkçe karakter sorunlarına dayanıklı veri ön işleme bloğu
 # Bu blok, sütun adlarına doğrudan Türkçe karakterlerle referans vermek yerine CSV dosyalarındaki sabit sütun pozisyonlarını kullanır.
 
@@ -167,7 +166,6 @@ save(
   fuel_snapshot,
   file = "data/processed/vehicle_project_data.RData"
 )
-```
 
 # 4. Analysis
 
