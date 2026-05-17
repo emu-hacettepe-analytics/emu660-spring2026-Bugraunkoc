@@ -42,11 +42,132 @@ Araçların gündelik hayatımızın olmazsa olmazı haline geldiği dünyamızd
 
 Ham dosyalarda hem açıklayıcı sütunlar hem de analizde kullanılacak gözlem değerleri bulunmaktadır. Veri setlerini analize hazır hale getirmek için aşağıdaki adımlar uygulanmıştır:
 
-Analizde yalnızca `Ölçü Birimi == "Sayı"` olan gözlemler kullanılmıştır.
-`Toplam` kategorisi, pay hesaplamalarını bozabileceği için analiz öncesinde dışarıda bırakılmıştır.
-Aylık zaman değişkeni tarih formatına çevrilmiştir.
-Marka kayıtları yıllık düzeyde toplanmıştır. Böylece her marka için yıllık yeni kayıt sayısı elde edilmiştir.
-Yakıt türü verisi stok verisi olduğu için tekrar eden değerlerin toplanmaması adına aylık değerler toplanmamıştır. Bunun yerine, her yıl için mevcut en son ay seçilmiştir. Tam yıllarda bu değer 2026 yılı haricinde Aralık ayına karşılık gelmektedir. 2026 yılı için veri alınan en son ay Mart olduğu için bu döneminin gözlemi kullanılmıştır.
+- Türkçe Sütun başlıkları kaynaklı hatalar giderilmiştir.
+- Analizde yalnızca `Ölçü Birimi == "Sayı"` olan gözlemler kullanılmıştır.
+- `Toplam` kategorisi, pay hesaplamalarını bozabileceği için analiz öncesinde dışarıda bırakılmıştır.
+- Aylık zaman değişkeni tarih formatına çevrilmiştir.
+- Marka kayıtları yıllık düzeyde toplanmıştır. Böylece her marka için yıllık yeni kayıt sayısı elde edilmiştir.
+- Yakıt türü verisi stok verisi olduğu için tekrar eden değerlerin toplanmaması adına aylık değerler toplanmamıştır. Bunun yerine, her yıl için mevcut en son ay seçilmiştir. Tam yıllarda bu değer 2026 yılı haricinde Aralık ayına karşılık gelmektedir. 2026 yılı için veri alınan en son ay Mart olduğu için bu döneminin gözlemi kullanılmıştır.
+
+```{r preprocessing}
+# Türkçe karakter sorunlarına dayanıklı veri ön işleme bloğu
+# Bu blok, sütun adlarına doğrudan Türkçe karakterlerle referans vermek yerine CSV dosyalarındaki sabit sütun pozisyonlarını kullanır.
+
+# Sayısal değerleri güvenli biçimde dönüştürmek için yardımcı fonksiyon
+clean_number <- function(x) {
+  x <- as.character(x)
+  x <- stringr::str_replace_all(x, "\\s", "")
+  x <- stringr::str_replace_all(x, ",", ".")
+  suppressWarnings(as.numeric(x))
+}
+
+# ------------------------------------------------------------
+# Marka veri seti ön işleme
+# ------------------------------------------------------------
+
+# Marka dosyasında ilgili sütunlar:
+# 9  = UNIT_MEASURE
+# 10 = Ölçü Birimi
+# 11 = MARKA
+# 12 = Marka (DESC)
+# 13 = Zaman (TIME_PERIOD)
+# 14 = Gözlem
+
+brand_clean <- brand_raw %>%
+  transmute(
+    date = lubridate::ymd(paste0(.data[[13]], "-01")),
+    year = lubridate::year(date),
+    month = lubridate::month(date),
+    brand_code = .data[[11]],
+    brand = .data[[12]],
+    unit_code = .data[[9]],
+    unit = .data[[10]],
+    observations = clean_number(.data[[14]])
+  ) %>%
+  filter(
+    unit_code == "NR",
+    !is.na(observations),
+    brand != "Toplam"
+  )
+
+annual_brand <- brand_clean %>%
+  group_by(year, brand) %>%
+  summarise(
+    registrations = sum(observations, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  group_by(year) %>%
+  mutate(
+    total_registrations = sum(registrations, na.rm = TRUE),
+    market_share = registrations / total_registrations,
+    rank = dense_rank(desc(registrations))
+  ) %>%
+  ungroup()
+
+# ------------------------------------------------------------
+# Yakıt türü veri seti ön işleme
+# ------------------------------------------------------------
+
+# Yakıt dosyasında ilgili sütunlar:
+# 9  = YAKIT_TUR
+# 10 = Yakıt Türü
+# 11 = UNIT_MEASURE
+# 12 = Ölçü Birimi
+# 13 = Zaman (TIME_PERIOD)
+# 14 = Gözlem
+
+fuel_clean <- fuel_raw %>%
+  transmute(
+    date = lubridate::ymd(paste0(.data[[13]], "-01")),
+    year = lubridate::year(date),
+    month = lubridate::month(date),
+    fuel_code = .data[[9]],
+    fuel_type = .data[[10]],
+    unit_code = .data[[11]],
+    unit = .data[[12]],
+    stock = clean_number(.data[[14]])
+  ) %>%
+  filter(
+    unit_code == "NR",
+    !is.na(stock),
+    fuel_type != "Toplam"
+  )
+
+fuel_snapshot <- fuel_clean %>%
+  group_by(year, fuel_type) %>%
+  slice_max(order_by = date, n = 1, with_ties = FALSE) %>%
+  ungroup() %>%
+  group_by(year) %>%
+  mutate(
+    total_stock = sum(stock, na.rm = TRUE),
+    share = stock / total_stock
+  ) %>%
+  ungroup()
+
+# ------------------------------------------------------------
+# İşlenmiş veri çıktıları
+# ------------------------------------------------------------
+
+dir.create("data/processed", recursive = TRUE, showWarnings = FALSE)
+
+write_csv(
+  annual_brand,
+  "data/processed/annual_brand_registrations.csv"
+)
+
+write_csv(
+  fuel_snapshot,
+  "data/processed/annual_fuel_stock_snapshot.csv"
+)
+
+save(
+  brand_clean,
+  annual_brand,
+  fuel_clean,
+  fuel_snapshot,
+  file = "data/processed/vehicle_project_data.RData"
+)
+```
 
 # 4. Analysis
 
